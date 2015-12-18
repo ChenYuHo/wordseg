@@ -1,0 +1,65 @@
+
+estimate stroke width:
+W = Bp/(Bp-Wp)
+Bp = total number of black pixels
+Wp = number of black pixels whose 3 right-down pixels are all black
+
+divide input text-line image to m*n grids
+m = ceil(IW/W)   IW=image width, W=stroke width
+n = ceil(IH/W)   IH=image height
+
+for every node, consider only three direction (right, right up, right down)
+
+b_k(j) = 1- (pixel_kj)/(W*W+1)
+pixel_kj = number of black pixels in grid vkj
+
+a_ij = (diagonal) ? 1/sqrt(2) : 1
+
+pi_i = sigma(m/3, g=1)(b_g(i)) / (m/3)
+gamma_i = sigma(m, g=2*m/3)(b_g(i)) / (m/3)
+
+sigma_1(k) = pi_k*b_1(k)    (prbability of grid v_1k being starting node )
+phi_1(k) = 0 
+
+sigma_j+1(k) = max (sigma_j(i)*a_ik*b_j+1(k)) , k-1<=i<=k+1, i>=1, i<=n
+phi_j+1(k) = argmax(sigma_j(i)*a_ik)
+
+sigma_m(k) = max(sigma_m-1(i)*a_ik*b_m(k)*gamma_k)
+phi_m(k) = argmax(sigma_m-1(i)*a_ik*gamma_k)
+
+
+p* = max(sigma_m(i))        , 1<=i<=n
+i_m* = argmax(sigma_m(i))
+
+i_j* = phi_j+1(i_j+1*)
+
+sigma_m(k) larger than Thres as possible 
+Thres = (1-c1/(W*W+1))^c2  * (1/(sqrt(2)))^c3
+c1=W^2 , allowed number of black pixels
+c2=3,    permitted number of grids haaveing more than c1 black pixels in them
+c3=4,    frequency of diagonal direction 
+
+remove redundant path:
+ (1) two path i,j,  if {nodes of i} ^ {nodes of j} != phi, and sigma_m(i) <= sigma_m(j), then remove i
+ (2) select middle path between two character (not crossing any black pixel, sigma_m(i)=1, j+1<=i<=j+c, then we take Path_j+c/2)
+ (3) calculate distance between two neighboring segmentaiton d=
+
+find possible non-linear segmentation paths
+(probabilistic Viterbi algorithm)
+
+determine candidate paths
+verifying
+ 1.overlapping paths
+ 2.between-character gaps
+ 3.adjacent-path distance
+
+Construct segmentation graph
+(each node represents a candidate path and and edge, an edge connects two nodes)
+ 1.represent nodes
+ 2.two ndoes with appropriate distances are connected
+
+find least cost path
+ 1.character recognition distances
+ 2.squareness of characters
+ 3.internal gaps in characters
+
