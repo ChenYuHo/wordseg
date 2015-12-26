@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Handwritten Image Processing</title>
+</head>
+<body>
+<div class="bg">
+<canvas id="canvas1"></canvas>
+<button onclick="alert(hwimg1.strokeWidth(true))">stroke width 1</button>
+</div>
+<div class="bg">
+<canvas id="canvas2"></canvas>
+<button onclick="alert(hwimg2.strokeWidth(true))">stroke width 2</button>
+</div>
+<script type="text/javascript" src="handwrittenimage.js"></script>
+<script>
+var hwimg1 = new handwrittenImage(
+  $('canvas1'),
+  'https://dl.dropboxusercontent.com/u/16985184/textline1_bw.png'
+);
+var hwimg2 = new handwrittenImage(
+  $('canvas2'),
+  'https://dl.dropboxusercontent.com/u/16985184/textline2_bw.png'
+);
+</script>
+  </body>
+</html>
