@@ -51,7 +51,7 @@ handwrittenImage.prototype.blackPixels = function(calculateRightDown){
       for(var x = 0; x < w-1; x++) {  //not visiting last column cause no "right" point
         if(data[((w * y) + x) * 4]===0){
           bp.amount++;
-          if(data[((w * y) + x+1) * 4]===0 && data[((w * (y+1)) + x) * 4]===0 && data[((w * (y+1)) + x+1) * 4]===0)
+          if(data[((w * y) + x+1) * 4]===0 && data[((w * (y+1)) + x) * 4]===0)// && data[((w * (y+1)) + x+1) * 4]===0)
             bp.rightDownBlack++;
         }
       }
