@@ -204,8 +204,37 @@ handwrittenImage.prototype.viterbi = function(vertical) {
   //TODO: split image by path
 };
 
-handwrittenImage.prototype.removeConsecutivePath = function(paths){
-  
+handwrittenImage.prototype.removeConsecutivePath = function(paths) {
+  var flag = false;
+  var start = 0;
+  var end = 0;
+  var result = [];
+  for (var i = 0; i < paths.length - 1; ++i) {
+    if (paths[i].p === 1) {
+      if (flag) {
+        continue;
+      } else {
+        flag = true;
+        start = i;
+      }
+    } else {
+      if (flag) {
+        end = i;
+        result.push(paths[Math.ceil((start + end) / 2)]);
+        result.push(paths[i]);
+        flag = false;
+      } else {
+        result.push(paths[i]);
+        continue;
+      }
+    }
+  }
+  if (paths[i].p === 1 && flag) {
+    end = i;
+    result.push(paths[Math.ceil((start + end) / 2)]);
+  } else result.push(paths[i]);
+  // console.log(result);
+  return result;
 }
 
 handwrittenImage.prototype.removeRedundentPath = function() {
@@ -214,13 +243,15 @@ handwrittenImage.prototype.removeRedundentPath = function() {
     return (grid[0]).pathsThrough.length >= 1;
   }).map(function(g) {
     var res = Math.max.apply(Math, g[0].pathsThrough.map(function(o) {
-      return o.p; }))
+      return o.p;
+    }))
     index = g[0].pathsThrough.find(function(o) {
-      return o.p == res; });
+      return o.p == res;
+    });
     // console.log(index.row);
     return paths[index.row];
   });
-  console.log(result);
+  // console.log(result);
   return result;
   // for(var i=0; i<this.rows; ++i){
   //   this.paths[i].p 
@@ -325,11 +356,13 @@ handwrittenImage.prototype.trackPath = function() {
 handwrittenImage.prototype.drawPath = function(paths) {
   var cols = this.cols;
   var record = Array.apply(null, Array(this.rows));
-  record = record.map(function(){  // construct array of records
+  record = record.map(function() { // construct array of records
     var c = Array.apply(null, Array(cols));
-    return c.map(function(){return false;});
+    return c.map(function() {
+      return false;
+    });
   });
-  console.log(record)
+  // console.log(record)
   var col = 0;
   var context = this.context;
   var cols = this.cols;
@@ -340,31 +373,31 @@ handwrittenImage.prototype.drawPath = function(paths) {
   var row = 0;
   var width = this.width;
   paths.map(function(path) {
-    if(path.p === 1){
-      record[path.thisRow] = record[path.thisRow].map(function(){return true;});
+    if (path.p === 1) {
+      record[path.thisRow] = record[path.thisRow].map(function() {
+        return true;
+      });
       y = sw * (path.thisRow + 1) - sw / 2;
       context.moveTo(0, y);
       context.lineTo(width, y);
       context.strokeStyle = '#ff0000';
       context.stroke();
-    }
-    else{
+    } else {
       now.x = width;
       row = path.thisRow;
       now.y = sw * (path.thisRow + 1) - sw / 2;
-      for(col = cols - 1; col >= 0; --col){
+      for (col = cols - 1; col >= 0; --col) {
         row = path.route[col];
-        if(record[row][col]) {
-          console.log("break");
+        if (record[row][col]) {
+          // console.log("break");
           break;
-        }
-        else{
+        } else {
           record[row][col] = true;
         }
         next.x = now.x - sw;
         next.y = sw * (row + 1) - sw / 2;
-        console.log(now);
-        console.log(next);
+        // console.log(now);
+        // console.log(next);
         context.moveTo(now.x, now.y);
         context.lineTo(next.x, next.y);
         context.strokeStyle = '#ff0000';
