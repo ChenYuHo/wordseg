@@ -140,8 +140,8 @@ handwrittenImage.prototype.viterbi = function(vertical) {
   var prevRow = 0;
   var thisRow = 0;
   var nextRow = 0;
-  // var obliqueTrsProb = 0.9;
-  var obliqueTrsProb = (Math.sqrt(2)) / 2; // control if oblique path is allowed
+  var obliqueTrsProb = 0.99;
+  // var obliqueTrsProb = (Math.sqrt(2)) / 2; // control if oblique path is allowed
   var calculatePathProb = function(rowOfGrids, row) {
     prevRow = (row === 0) ? 0 : grids[(row - 1)][col - 1].pathProb.p * obliqueTrsProb * rowOfGrids[col].obsProb;
     thisRow = rowOfGrids[col - 1].pathProb.p * rowOfGrids[col].obsProb;
@@ -209,31 +209,20 @@ handwrittenImage.prototype.removeConsecutivePath = function(paths) {
   var start = 0;
   var end = 0;
   var result = [];
-  for (var i = 0; i < paths.length - 1; ++i) {
+  var consecutive = [];
+  paths.push({"thisRow":-1});
+  for (var i = 0; i < paths.length-1; ++i) {
     if (paths[i].p === 1) {
-      if (flag) {
-        continue;
-      } else {
-        flag = true;
-        start = i;
+      if (paths[i].thisRow + 1 === paths[i + 1].thisRow) {
+        consecutive.push(paths[i]);
+      }else{
+        consecutive.push(paths[i]);
+        index = Math.floor(consecutive.length/2);
+        result.push(consecutive[index]);
+        consecutive = [];
       }
-    } else {
-      if (flag) {
-        end = i;
-        result.push(paths[Math.ceil((start + end) / 2)]);
-        result.push(paths[i]);
-        flag = false;
-      } else {
-        result.push(paths[i]);
-        continue;
-      }
-    }
+    } else result.push(paths[i]);
   }
-  if (paths[i].p === 1 && flag) {
-    end = i;
-    result.push(paths[Math.ceil((start + end) / 2)]);
-  } else result.push(paths[i]);
-  // console.log(result);
   return result;
 }
 
@@ -424,7 +413,7 @@ handwrittenImage.prototype.drawPath = function(paths) {
     //   now.y = next.y;
     // }
   });
-  console.log(record);
+  // console.log(record);
 }
 
 handwrittenImage.prototype.drawPaths = function() {
