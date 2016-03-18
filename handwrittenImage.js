@@ -201,23 +201,76 @@ handwrittenImage.prototype.viterbi = function(vertical) {
   paths.filter(function(path) {
 
   });
+  return "done";
   //TODO: split image by path
 };
 
+/**
+ * prune strategy 3: for every two paths, if their distance is less than 1.5 * strokewidth,
+ * keep the one with higher probability, otherwise, keep both path
+ * @param  {Array} paths original paths
+ * @return {Array}       array of paths after applying prune strategy 3
+ */
+handwrittenImage.prototype.removeClosePath = function(paths) {
+  var result = [];
+  var flag = paths.map(function() {
+    return false;
+  });
+  var up = 0;
+  var down = 1;
+  while (down < paths.length) {
+    if (1.5 * this.sw < pathDistance(paths[up], paths[down])) { //keep both
+      if (!flag[up]) flag[up] = true;
+      if (!flag[down]) flag[down] = true;
+      down += 1;
+      up = down - 1;
+    } else if (paths[up].p > paths[down].p) { //keep up, delete down
+      if (flag[down]) flag[down] = false;
+      if (!flag[up]) flag[up] = true;
+      down += 1;
+    } else { //keep down, delete up
+      if (flag[up]) flag[up] = false;
+      if (!flag[down]) flag[down] = true;
+      up = down;
+      down += 1;
+    }
+  }
+  for (var i = 0; i < flag.length; ++i)
+    if (flag[i]) result.push(paths[i]);
+  return result;
+  /**
+   * calculate distance between path1 and path2
+   * distance is defined as the median value of all grid distance of path1 and path2
+   * @param  {Object} path1
+   * @param  {Object} path2
+   * @return {Number}       distance
+   */
+  function pathDistance(path1, path2) {
+    var dist = path1.route.map(function(point, index) {
+      return Math.abs(point - path2.route[index])
+    }).sort(function compareNumbers(a, b) {
+      return a - b;
+    });
+    return dist[Math.floor((dist.length - 1) / 2)];
+  };
+}
+
+/**
+ * prune strategy 2: for consecutive straight paths(with probability 1), keep only the center one
+ * @param  {Array} paths original paths
+ * @return {Array}       array of paths with only center one of consecutive straight paths kept
+ */
 handwrittenImage.prototype.removeConsecutivePath = function(paths) {
-  var flag = false;
-  var start = 0;
-  var end = 0;
+  paths.push({ "thisRow": -1 }); //for looping convenience so that no need to handle boundary condition
   var result = [];
   var consecutive = [];
-  paths.push({"thisRow":-1});
-  for (var i = 0; i < paths.length-1; ++i) {
-    if (paths[i].p === 1) {
+  for (var i = 0; i < paths.length - 1; ++i) {
+    if (paths[i].p === 1) { //begin of consecutive straight paths
       if (paths[i].thisRow + 1 === paths[i + 1].thisRow) {
         consecutive.push(paths[i]);
-      }else{
+      } else { //end of consecutive straight paths
         consecutive.push(paths[i]);
-        index = Math.floor(consecutive.length/2);
+        index = Math.floor(consecutive.length / 2);
         result.push(consecutive[index]);
         consecutive = [];
       }
@@ -226,119 +279,45 @@ handwrittenImage.prototype.removeConsecutivePath = function(paths) {
   return result;
 }
 
-handwrittenImage.prototype.removeRedundentPath = function() {
-  var paths = this.paths;
-  result = this.grids.filter(function(grid) {
+/**
+ * prune strategy 1: for overlapping paths, keep the one with largest probability
+ * @param  {Array} paths original paths
+ * @return {Array}       array of paths with largest probability among overlapping neighbors
+ */
+handwrittenImage.prototype.removeOverlapPath = function(paths) {
+  var result = this.grids.filter(function(grid) {
+    //delete no path-passing grids
     return (grid[0]).pathsThrough.length >= 1;
   }).map(function(g) {
     var res = Math.max.apply(Math, g[0].pathsThrough.map(function(o) {
+      //find max probability of the paths passing this grid
       return o.p;
     }))
     index = g[0].pathsThrough.find(function(o) {
+      //find the path with that max probability
       return o.p == res;
     });
-    // console.log(index.row);
-    return paths[index.row];
+    return paths[index.row]; //return as map result
   });
-  // console.log(result);
   return result;
-  // for(var i=0; i<this.rows; ++i){
-  //   this.paths[i].p 
-  //   grids[i][0].pathsThrough
-  // }
-  // this.record = Array.apply(null, Array(this.rows));
-  // var cols = this.cols;
-  // this.record = this.record.map(function(){  // construct array of records
-  //   var c = Array.apply(null, Array(cols));
-  //   return c.map(function(){return false;});
-  // }) 
-  // var i=0;
-  // var j=0;
-  // var overlap = false;
-  // var consecutive1 = false;
-  // var consecutivep = [];
-  // var group = [];
-  // for(i=0;i<this.rows;++i){
-  //   r = this.paths[i].route;  //current route
-  //     if(this.paths[i].p === 1){  // condition 2
-  //       if(!consecutive1){  // first of condition 2
-  //         consecutivep = [];
-  //         consecutivep.push(i);
-  //         consecutive1 = true;
-  //       }
-  //       else{ // consecutive to above paths
-  //         consecutivep.push(i);
-  //       }
-  //     }
-  //     else{
-  //       if(consecutive1){  // consecutive ends
-  // //TODO: deal with condition 2
-  //         consecutive1 = false;
-  //       }
-  //     }
-
-  // for(j=r.length-1;j>=0;--j){
-  // if(this.record[r[j]][j]){  // overlap
-  //   straight = false;
-  // }
-  // else{
-
-  // }
-  // this.record[r[j]][j] = true;
-  // }
-  // for(j=0;j<r.length;++j){
-  // if(this.record[r[j]][j]){  // overlap
-  //   overlap = true;
-  // }
-  // else{
-  //   if(overlap){  // consecutive overlap paths ends...
-
-  //   }
-  //   else{ //
-
-  //   }
-  //   overlap = false;
-  // }
-  // this.record[r[j]][j] = true;
-  // this.record[r[j]][j] ++;
-  // }
-  // }
-
 };
 
 handwrittenImage.prototype.trackPath = function() {
-  // this.record = Array.apply(null, Array(this.rows));
   var cols = this.cols;
-  // this.record = this.record.map(function(){  // construct array of records
-  //   var c = Array.apply(null, Array(cols));
-  //   return c.map(function(){return false;});
-  // });
-  // var record = this.record;
   var grids = this.grids;
-  // this.paths.map(function(path, i){
   for (i = 0; i < this.rows; ++i) {
     var path = this.paths[i];
     var row = path.thisRow;
-    // if(path.p===1) {
-    //   record[i].map(function(){return true;});
-    //   path.route = Array.apply(null, Array(cols));
-    //   path.route = path.route.map(function(){return row;});
-    //   continue;
-    // }
     path.route = [];
     var col = cols - 1;
-    // path.route.push({"row":row, "col":col});
     path.route.push(row); //col is just 0, 1, 2, ...
-    // grids[row][col].pathsThrough.push(path.thisRow);
     row = path.prevRow;
     for (col = col - 1; col >= 0; --col) { //backtracking
-      // path.route.push({"row":row, "col":col});
       path.route.push(row);
       if (col === 0) grids[row][col].pathsThrough.push({ "row": path.thisRow, "p": path.p });
       row = grids[row][col].pathProb.prevRow;
     }
     path.route.reverse();
-    // });
   }
 };
 
@@ -351,7 +330,6 @@ handwrittenImage.prototype.drawPath = function(paths) {
       return false;
     });
   });
-  // console.log(record)
   var col = 0;
   var context = this.context;
   var cols = this.cols;
@@ -378,15 +356,12 @@ handwrittenImage.prototype.drawPath = function(paths) {
       for (col = cols - 1; col >= 0; --col) {
         row = path.route[col];
         if (record[row][col]) {
-          // console.log("break");
           break;
         } else {
           record[row][col] = true;
         }
         next.x = now.x - sw;
         next.y = sw * (row + 1) - sw / 2;
-        // console.log(now);
-        // console.log(next);
         context.moveTo(now.x, now.y);
         context.lineTo(next.x, next.y);
         context.strokeStyle = '#ff0000';
@@ -395,25 +370,7 @@ handwrittenImage.prototype.drawPath = function(paths) {
         now.y = next.y;
       }
     }
-
-    // now.x = width;
-    // row = p.thisRow;
-    // now.y = sw * (p.thisRow + 1) - sw / 2;
-    // for (col = cols - 1; col > 0; --col) { //backtracking
-    //   next.x = now.x - sw;
-    //   row = grids[row][col].pathProb.prevRow;
-    //   next.y = sw * (row + 1) - sw / 2;
-    //   // console.log(now);
-    //   // console.log(next);
-    //   context.moveTo(now.x, now.y);
-    //   context.lineTo(next.x, next.y);
-    //   context.strokeStyle = '#ff0000';
-    //   context.stroke();
-    //   now.x = next.x;
-    //   now.y = next.y;
-    // }
   });
-  // console.log(record);
 }
 
 handwrittenImage.prototype.drawPaths = function() {
@@ -434,8 +391,6 @@ handwrittenImage.prototype.drawPaths = function() {
       next.x = now.x - sw;
       row = grids[row][col].pathProb.prevRow;
       next.y = sw * (row + 1) - sw / 2;
-      // console.log(now);
-      // console.log(next);
       context.moveTo(now.x, now.y);
       context.lineTo(next.x, next.y);
       context.strokeStyle = '#ff0000';
@@ -443,33 +398,6 @@ handwrittenImage.prototype.drawPaths = function() {
       now.x = next.x;
       now.y = next.y;
     }
-    // do{
-    //   next.x = now.x - sw;
-    //   row = grids[row][col--].pathProb.grid;
-    //   // col -= 1;
-    //   next.y = sw*(row+1)-sw/2;
-    //   context.beginPath();
-    //         // console.log(now);
-    //         // console.log(next);
-    // context.moveTo(now.x, now.y);
-    // context.lineTo(next.x, next.y);
-    // context.strokeStyle = '#ff0000';
-    // context.stroke();
-    // now = next;
-    // }while(now.x>0);
-    // for(col = cols; col>0 ; --col){
-    //   next.x = sw*col-sw-sw/2;
-    //   next.y = sw*(grids[p.row][col-1].grid)-sw/2;
-    //   context.beginPath();
-    //   // console.log("from %d, %d", col, p.row);
-    //   context.moveTo(now.x, now.y);
-    //   // console.log("to %d, %d", col-1, p.grid);
-    //   context.lineTo(next.x, next.y);
-    //   // set row color
-    //   context.strokeStyle = '#ff0000';
-    //   context.stroke();
-    //   now = next;
-    // }
   });
 };
 
@@ -484,7 +412,6 @@ handwrittenImage.prototype.divideImage = function() {
   var row = [];
   var grid = [];
   var obsProbDenominator = strokeWidth * strokeWidth + 1;
-  // var obliqueTrsProb = Math.sqrt(2)/2;
   var x = 0;
   var y = 0;
   for (y = 0; y < h; y += strokeWidth) {
