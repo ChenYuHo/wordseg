@@ -1,7 +1,3 @@
-function $(id) {
-  return document.getElementById(id);
-}
-
 function handwrittenImage(canvas, src) {
   // load image in canvas
   var context = canvas.getContext('2d');
@@ -53,6 +49,8 @@ handwrittenImage.prototype.strokeWidth = function() {
   var bp = blackPixels.amount;
   var wp = blackPixels.rightDownBlack;
   var width = bp / (bp - wp);
+  this.cw = blackPixels.characterWidth; //character width
+  this.bl = blackPixels.blankLine; //blank line
   return width;
 };
 
@@ -66,16 +64,55 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
     n = data.length;
   if (calculateRightDown) {
     bp.rightDownBlack = 0;
+    bp.characterWidth = [];
+    bp.blankLine = [];
     for (var y = 0; y < h; y++) {
+      var firstBlack = true;  // record the position of the first and last black pixels for character width
+      var lastBlack = false;
+      var firstBlackPos = 0;
+      var lastBlackPos = 0;
+      var blankLine = true;
       // loop through each column
       for (var x = 0; x < w - 1; x++) { //not visiting last column cause no "right" point
         if (data[((w * y) + x) * 4] === 0 && data[((w * y) + x) * 4 + 3] === 255) {
+          blankLine = false;
+          if(firstBlack){
+            firstBlack = false;
+            firstBlackPos = x;
+          }
+          lastBlack = true;
+          lastBlack = x;
+
           bp.amount++;
           if (data[((w * y) + x + 1) * 4] === 0 && data[((w * y) + x + 1) * 4 + 3] === 255 && data[((w * (y + 1)) + x) * 4] === 0 && data[((w * (y + 1)) + x) * 4 + 3] === 255) // && data[((w * (y+1)) + x+1) * 4]===0)
             bp.rightDownBlack++;
+
+        }else{
+          if(lastBlack){
+            lastBlackPos = x-1;
+            lastBlack = false;
+          }
         }
       }
-      if (data[((w * y) + x) * 4] === 0) bp.amount++; //visit last column 
+
+      if (data[((w * y) + x) * 4] === 0){ //visit last column 
+        blankLine = false;
+        if(firstBlack){
+          firstBlack = false;
+          firstBlackPos = x;
+        }
+        lastBlack = true;
+        lastBlack = x;
+        bp.amount++;
+      }else{
+        if(lastBlack){
+          lastBlackPos = x-1;
+          lastBlack = false;
+        }
+      }
+      if(blankLine) bp.blankLine.push(true); else bp.blankLine.push(false);
+      bp.characterWidth.push(lastBlackPos - firstBlackPos + 1);
+
     }
   } else {
     for (i = 0; i < n; i += 4)
@@ -84,11 +121,8 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
   return bp;
 };
 
-handwrittenImage.prototype.viterbi = function(vertical) {
+handwrittenImage.prototype.viterbi = function() {
   // Estimate stroke width
-  var iwidth = this.width;
-  var iheight = this.height;
-
   // divide tli into row*col grids
   this.grids = this.divideImage();
   var grids = this.grids;
@@ -110,7 +144,6 @@ handwrittenImage.prototype.viterbi = function(vertical) {
   //   });
 
   var row = 0;
-  var grid = 0; //for loop indexing
   var col = 0;
   var initProb = 0;
   var finalProb = 0;
@@ -154,9 +187,9 @@ handwrittenImage.prototype.viterbi = function(vertical) {
   for (col = 1; col < cols - 1; ++col) { //excluding last column
     grids.map(calculatePathProb);
   }
-  c1 = this.sw;
-  c2 = 3;
-  c3 = 4; // magic numbers
+  // var c1 = this.sw;
+  // var c2 = 3;
+  // var c3 = 4; // magic numbers
   // var thres = 0.1;
   // var thres = Math.pow(1-(c1*c1/(1+(this.sw*this.sw))),c2)*Math.pow(1/Math.sqrt(2),c3);
   var paths = [];
@@ -194,15 +227,31 @@ handwrittenImage.prototype.viterbi = function(vertical) {
 
   //TODO: remove redundant path
   // overlap path, remove that who has lower pathProb
-  paths.filter(function(path) {
+  // paths.filter(function(path) {
 
-  });
+  // });
   // continuous path, reserve central one
-  paths.filter(function(path) {
+  // paths.filter(function(path) {
 
-  });
+  // });
   return "done";
   //TODO: split image by path
+};
+
+handwrittenImage.prototype.squareness = function(high, low){ //ratio of character width and height between high and low
+  var from = high*this.sw;
+  var to = (low+1)*this.sw;
+  var cw = Math.max.apply(null, this.cw.slice(from, to));
+  var ch = to - from;
+  return Math.min(cw, ch) / Math.max(cw, ch);
+};
+
+handwrittenImage.prototype.gap = function(high, low){ // blank lines between high and low
+  var from = high*this.sw;
+  var to = (low+1)*this.sw;
+  var ch = to - from;
+  var result = this.bl.slice(from, to).filter(function(i){return i;}).length / ch * 2
+  return (result>=1) ? 1 : result;
 };
 
 /**
@@ -247,13 +296,13 @@ handwrittenImage.prototype.removeClosePath = function(paths) {
    */
   function pathDistance(path1, path2) {
     var dist = path1.route.map(function(point, index) {
-      return Math.abs(point - path2.route[index])
+      return Math.abs(point - path2.route[index]);
     }).sort(function compareNumbers(a, b) {
       return a - b;
     });
     return dist[Math.floor((dist.length - 1) / 2)];
-  };
-}
+  }
+};
 
 /**
  * prune strategy 2: for consecutive straight paths(with probability 1), keep only the center one
@@ -270,14 +319,14 @@ handwrittenImage.prototype.removeConsecutivePath = function(paths) {
         consecutive.push(paths[i]);
       } else { //end of consecutive straight paths
         consecutive.push(paths[i]);
-        index = Math.floor(consecutive.length / 2);
+        var index = Math.floor(consecutive.length / 2);
         result.push(consecutive[index]);
         consecutive = [];
       }
     } else result.push(paths[i]);
   }
   return result;
-}
+};
 
 /**
  * prune strategy 1: for overlapping paths, keep the one with largest probability
@@ -292,8 +341,8 @@ handwrittenImage.prototype.removeOverlapPath = function(paths) {
     var res = Math.max.apply(Math, g[0].pathsThrough.map(function(o) {
       //find max probability of the paths passing this grid
       return o.p;
-    }))
-    index = g[0].pathsThrough.find(function(o) {
+    }));
+    var index = g[0].pathsThrough.find(function(o) {
       //find the path with that max probability
       return o.p == res;
     });
@@ -305,7 +354,7 @@ handwrittenImage.prototype.removeOverlapPath = function(paths) {
 handwrittenImage.prototype.trackPath = function() {
   var cols = this.cols;
   var grids = this.grids;
-  for (i = 0; i < this.rows; ++i) {
+  for (var i = 0; i < this.rows; ++i) {
     var path = this.paths[i];
     var row = path.thisRow;
     path.route = [];
@@ -332,8 +381,6 @@ handwrittenImage.prototype.drawPath = function(paths) {
   });
   var col = 0;
   var context = this.context;
-  var cols = this.cols;
-  var grids = this.grids;
   var sw = this.sw;
   var now = {};
   var next = {};
@@ -344,7 +391,7 @@ handwrittenImage.prototype.drawPath = function(paths) {
       record[path.thisRow] = record[path.thisRow].map(function() {
         return true;
       });
-      y = sw * (path.thisRow + 1) - sw / 2;
+      var y = sw * (path.thisRow + 1) - sw / 2;
       context.moveTo(0, y);
       context.lineTo(width, y);
       context.strokeStyle = '#ff0000';
@@ -371,7 +418,7 @@ handwrittenImage.prototype.drawPath = function(paths) {
       }
     }
   });
-}
+};
 
 handwrittenImage.prototype.drawPaths = function() {
   var col = 0;
@@ -404,7 +451,6 @@ handwrittenImage.prototype.drawPaths = function() {
 
 handwrittenImage.prototype.divideImage = function() {
   // TODO: divide image into row*col grids
-  var data = this.original.data;
   var h = this.image.height;
   var w = this.image.width;
   var strokeWidth = this.sw;
