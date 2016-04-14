@@ -67,7 +67,7 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
     bp.characterWidth = [];
     bp.blankLine = [];
     for (var y = 0; y < h; y++) {
-      var firstBlack = true;  // record the position of the first and last black pixels for character width
+      var firstBlack = true; // record the position of the first and last black pixels for character width
       var lastBlack = false;
       var firstBlackPos = 0;
       var lastBlackPos = 0;
@@ -76,7 +76,7 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
       for (var x = 0; x < w - 1; x++) { //not visiting last column cause no "right" point
         if (data[((w * y) + x) * 4] === 0 && data[((w * y) + x) * 4 + 3] === 255) {
           blankLine = false;
-          if(firstBlack){
+          if (firstBlack) {
             firstBlack = false;
             firstBlackPos = x;
           }
@@ -87,30 +87,30 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
           if (data[((w * y) + x + 1) * 4] === 0 && data[((w * y) + x + 1) * 4 + 3] === 255 && data[((w * (y + 1)) + x) * 4] === 0 && data[((w * (y + 1)) + x) * 4 + 3] === 255) // && data[((w * (y+1)) + x+1) * 4]===0)
             bp.rightDownBlack++;
 
-        }else{
-          if(lastBlack){
-            lastBlackPos = x-1;
+        } else {
+          if (lastBlack) {
+            lastBlackPos = x - 1;
             lastBlack = false;
           }
         }
       }
 
-      if (data[((w * y) + x) * 4] === 0){ //visit last column 
+      if (data[((w * y) + x) * 4] === 0) { //visit last column 
         blankLine = false;
-        if(firstBlack){
+        if (firstBlack) {
           firstBlack = false;
           firstBlackPos = x;
         }
         lastBlack = true;
         lastBlack = x;
         bp.amount++;
-      }else{
-        if(lastBlack){
-          lastBlackPos = x-1;
+      } else {
+        if (lastBlack) {
+          lastBlackPos = x - 1;
           lastBlack = false;
         }
       }
-      if(blankLine) bp.blankLine.push(true); else bp.blankLine.push(false);
+      bp.blankLine.push(blankLine);
       bp.characterWidth.push(lastBlackPos - firstBlackPos + 1);
 
     }
@@ -209,6 +209,15 @@ handwrittenImage.prototype.viterbi = function() {
   });
   this.paths = paths;
   this.trackPath();
+  this.drawPath(
+    this.ucsSearchPath(
+      this.removeClosePath(
+        this.removeConsecutivePath(
+          this.removeOverlapPath(paths)
+        )
+      )
+    )
+  );
   // this.removeRedundentPath();
   // this.drawPaths();
 
@@ -238,21 +247,102 @@ handwrittenImage.prototype.viterbi = function() {
   //TODO: split image by path
 };
 
-handwrittenImage.prototype.squareness = function(high, low){ //ratio of character width and height between high and low
-  var from = high*this.sw;
-  var to = (low+1)*this.sw;
-  var cw = Math.max.apply(null, this.cw.slice(from, to));
-  var ch = to - from;
-  return Math.min(cw, ch) / Math.max(cw, ch);
+handwrittenImage.prototype.ucsSearchPath = function(paths){
+  // var paths = this.removeClosePath(this.removeConsecutivePath(this.removeOverlapPath(this.paths)));
+  // from util import PriorityQueue
+  //   ucsQueue = PriorityQueue()
+  //   start = problem.getStartState()
+  //   ucsQueue.push(start, 0)
+  //   expanded = set()
+  //   path={}
+  //   path[start] = []
+  //   while not ucsQueue.isEmpty():
+  //       state = ucsQueue.pop()
+  //       if problem.isGoalState(state):
+  //           return path[state]
+  //       expanded.add(state)
+  //       for nextState in problem.getSuccessors(state):
+  //           if nextState[0] not in expanded:
+  //               pathToNext = list(path[state])
+  //               pathToNext.append(nextState[1])
+  //               cost = problem.getCostOfActions(pathToNext)
+  //               if (not path.has_key(nextState[0])) or problem.getCostOfActions(path[nextState[0]]) > cost:
+  //                   path[nextState[0]] = pathToNext
+  //                   ucsQueue.push(nextState[0], cost)
+  //   util.raiseNotDefined()
+  var ucsQueue = new PriorityQueue({ comparator: function(a, b) { return a.cost - b.cost; }});
+  var startRow = paths[0].thisRow;
+  var goalRow = paths[paths.length-1].thisRow;
+  ucsQueue.queue({row:startRow, cost: 0, index:0});//cost: from start to this
+  var expanded = new Set();
+  var path = {};
+  path[startRow] = {cost: 0, path:[paths[0]]};
+  while (ucsQueue.length != 0){
+    var thisState = ucsQueue.dequeue(); //{row, cost, index}
+    // console.log(thisState);
+    // console.log(path[thisState.row]);
+    if(thisState.row == goalRow) return path[thisState.row].path;
+    expanded.add(thisState.row);
+    for(var i = thisState.index+1;i<paths.length;++i){
+      if(!expanded.has(paths[i].thisRow)){
+        var pathToNext = path[thisState.row].path.slice(0);
+        pathToNext.push(paths[i]);
+        // console.log(pathToNext);
+        var cost = this.pathsCost(pathToNext);
+        // if(paths[i].thisRow in path)console.log(path[paths[i].thisRow].cost);
+        // console.log(cost);
+        if(!(paths[i].thisRow in path) || path[paths[i].thisRow].cost > cost){
+          path[paths[i].thisRow] = {cost: cost, path: pathToNext};
+          ucsQueue.queue({row:paths[i].thisRow, cost: cost, index: i});
+        }
+      }
+    }
+  }
 };
 
-handwrittenImage.prototype.gap = function(high, low){ // blank lines between high and low
-  var from = high*this.sw;
-  var to = (low+1)*this.sw;
-  var ch = to - from;
-  var result = this.bl.slice(from, to).filter(function(i){return i;}).length / ch * 2
-  return (result>=1) ? 1 : result;
-};
+handwrittenImage.prototype.pathsCost = function(paths){
+  var cost = 0;
+  for(var i=0;i<paths.length-1;++i){
+    cost += this.pathCost(paths[i].thisRow, paths[i+1].thisRow);
+  }
+  return cost;
+}
+
+handwrittenImage.prototype.pathCost = function(high, low){
+  var from = high * this.sw;
+  var to = (low + 1) * this.sw;
+  var character = this.bl.slice(from, to);
+  // character enclosed by high and low paths
+  var up = character.findIndex(function(e){return !e;});
+  var down = character.length - character.slice(0).reverse().findIndex(function(e){return !e;});
+  // find first and last non blank line (true region of character)
+  var ch = down - up;
+  var cw = Math.max.apply(null, this.cw.slice(from, to));
+  var squareness = 1/(Math.min(cw, ch) / Math.max(cw, ch));
+  // console.log("%d %d", cw, ch);
+  // character width, height;
+  var gap = character.slice(up, down).filter(function(i) {
+    return i; }).length;
+  // console.log("%f * %d + %f", squareness, ch, gap);
+  return squareness*ch + gap;
+}
+
+// handwrittenImage.prototype.squareness = function(high, low) { //ratio of character width and height between high and low
+//   var from = high * this.sw;
+//   var to = (low + 1) * this.sw;
+//   var cw = Math.max.apply(null, this.cw.slice(from, to));
+//   var ch = to - from;
+//   return Math.min(cw, ch) / Math.max(cw, ch);
+// };
+
+// handwrittenImage.prototype.gap = function(high, low) { // blank lines between high and low
+//   var from = high * this.sw;
+//   var to = (low + 1) * this.sw;
+//   var ch = to - from;
+//   var result = this.bl.slice(from, to).filter(function(i) {
+//     return i; }).length / ch * 2;
+//   return (result >= 1) ? 1 : result;
+// };
 
 /**
  * prune strategy 3: for every two paths, if their distance is less than 1.5 * strokewidth,

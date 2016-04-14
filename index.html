@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Handwritten Image Processing</title>
+  <script type="text/javascript" src="priority-queue.min.js"></script>
+  <script type="text/javascript" src="handwrittenImage.js"></script>
+</head>
+<body>
+<div class="bg">
+<canvas id="canvas1"></canvas>
+<canvas id="canvas2"></canvas>
+<canvas id="canvas3"></canvas>
+<canvas id="canvas4"></canvas>
+<canvas id="canvas5"></canvas>
+<button onclick="
+hwimg1.viterbi();
+hwimg2.viterbi();
+hwimg3.viterbi();
+hwimg4.viterbi();
+hwimg5.viterbi(); 
+// p1 = hwimg1.removeOverlapPath(hwimg1.paths);
+// p2 = hwimg1.removeConsecutivePath(p1);
+// p3 = hwimg1.removeClosePath(p2);
+// p4 = hwimg1.ucsSearchPath(p3);
+// // hwimg1.drawPaths();
+// // hwimg2.drawPath(p1);
+// // hwimg3.drawPath(p2);
+// hwimg4.drawPath(p3);
+// hwimg5.drawPath(p4);
+">viterbi</button>
+
+</div>
+<!--<br>
+<div class="bg">
+<canvas id="canvas2"></canvas>
+<button onclick="alert(hwimg2.viterbi())">viterbi 2</button>
+</div>-->
+<script>
+function $(id) {
+  return document.getElementById(id);
+}
+// var imgurl = 'https://dl.dropboxusercontent.com/u/16985184/handwrittenimage/3.png';
+var imgurl = 'https://dl.dropboxusercontent.com/u/16985184/handwrittenimage/';
+var hwimg1 = new handwrittenImage(
+  $('canvas1'),
+  imgurl+'a.png'
+);
+var hwimg2 = new handwrittenImage(
+  $('canvas2'),
+  imgurl+'b.png'
+);
+var hwimg3 = new handwrittenImage(
+  $('canvas3'),
+  imgurl+'c.png'
+);
+var hwimg4 = new handwrittenImage(
+  $('canvas4'),
+  imgurl+'d.png'
+);
+var hwimg5 = new handwrittenImage(
+  $('canvas5'),
+  imgurl+'e.png'
+);
+// var hwimg2 = new handwrittenImage(
+//   $('canvas2'),
+//   'https://dl.dropboxusercontent.com/u/16985184/handwrittenimage/textline2_bw.png'
+// );
+</script>
+  </body>
+</html>
