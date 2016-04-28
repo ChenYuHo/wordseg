@@ -45,9 +45,31 @@ handwrittenImage.prototype.orientation = function() {
   //TODO: detect orientation
 };
 
-handwrittenImage.prototype.otsu = function() {
-  //TODO: binarization using Otsu method
-};
+handwrittenImage.prototype.grayScale = function() {
+  var canvasData = this.getData(0, 0, this.width, this.height);
+  for (var x = 0; x < canvasData.width; x++) {
+    for (var y = 0; y < canvasData.height; y++) {
+      // Index of the pixel in the array
+      var idx = (x + y * this.width) * 4;
+      // The RGB values
+      var r = canvasData.data[idx + 0];
+      var g = canvasData.data[idx + 1];
+      var b = canvasData.data[idx + 2];
+      // Update GrayScale value
+      var gray = CalculateGrayValue(r, g, b);
+      canvasData.data[idx + 0] = gray;
+      canvasData.data[idx + 1] = gray;
+      canvasData.data[idx + 2] = gray;
+    }
+  }
+  this.setData(canvasData);
+  //using luminance, Gray = R*0.299 + G*0.587 + B*0.114
+  function CalculateGrayValue(rValue, gValue, bValue) {
+    return parseInt(rValue * 0.299 + gValue * 0.587 + bValue * 0.114);
+  }
+}
+
+
 
 handwrittenImage.prototype.strokeWidth = function() {
   var blackPixels = this.getData(0, 0, this.width, this.height).blackPixels(true);
