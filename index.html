@@ -3,25 +3,30 @@
 <head>
   <meta charset="utf-8">
   <title>Handwritten Image Processing</title>
+  <script type="text/javascript" src="priority-queue.min.js"></script>
   <script type="text/javascript" src="handwrittenImage.js"></script>
 </head>
 <body>
 <div class="bg">
 <canvas id="canvas1"></canvas>
-<button onclick="alert(hwimg1.strokeWidth(true))">stroke width 1</button>
-</div>
-<div class="bg">
 <canvas id="canvas2"></canvas>
-<button onclick="alert(hwimg2.strokeWidth(true))">stroke width 2</button>
+<button onclick="
+hwimg1.viterbi();
+hwimg2.viterbi();
+">viterbi</button>
+
 </div>
 <script>
+function $(id) {
+  return document.getElementById(id);
+}
 var hwimg1 = new handwrittenImage(
   $('canvas1'),
-  'test_image/textline1_bw.png'
+  'test_image/001.png'
 );
 var hwimg2 = new handwrittenImage(
   $('canvas2'),
-  'test_image/textline2_bw.png'
+  'test_image/002.png'
 );
 </script>
   </body>
