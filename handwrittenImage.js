@@ -45,30 +45,20 @@ handwrittenImage.prototype.orientation = function() {
   //TODO: detect orientation
 };
 
-handwrittenImage.prototype.grayScale = function() {
+handwrittenImage.prototype.toGrayScale = function() {
   var canvasData = this.getData(0, 0, this.width, this.height);
-  for (var x = 0; x < canvasData.width; x++) {
-    for (var y = 0; y < canvasData.height; y++) {
-      // Index of the pixel in the array
-      var idx = (x + y * this.width) * 4;
-      // The RGB values
-      var r = canvasData.data[idx + 0];
-      var g = canvasData.data[idx + 1];
-      var b = canvasData.data[idx + 2];
-      // Update GrayScale value
-      var gray = CalculateGrayValue(r, g, b);
-      canvasData.data[idx + 0] = gray;
-      canvasData.data[idx + 1] = gray;
-      canvasData.data[idx + 2] = gray;
-    }
+  var data = canvasData.data;
+  for (var idx = 0; idx < data.length; idx += 4) {
+    // Update GrayScale value using luminance, Gray = R*0.299 + G*0.587 + B*0.114
+    var gray = parseInt(data[idx]     * 0.299   //r
+                      + data[idx + 1] * 0.587   //g
+                      + data[idx + 2] * 0.114); //b
+    data[idx] = gray;
+    data[idx + 1] = gray;
+    data[idx + 2] = gray;
   }
   this.setData(canvasData);
-  //using luminance, Gray = R*0.299 + G*0.587 + B*0.114
-  function CalculateGrayValue(rValue, gValue, bValue) {
-    return parseInt(rValue * 0.299 + gValue * 0.587 + bValue * 0.114);
-  }
 }
-
 
 
 handwrittenImage.prototype.strokeWidth = function() {
@@ -87,9 +77,12 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
   var h = this.height;
   var w = this.width;
   var bp = { amount: 0 };
-  var i = 0,
-    n = data.length;
-  if (calculateRightDown) {
+  var i = 0;
+  if (!calculateRightDown) { // faster single loop
+    for (i = 0; i < data.length; i += 4)
+      if (data[i] === 0 && data[i + 3] === 255) bp.amount++;
+  }
+  else {
     bp.rightDownBlack = 0;
     bp.characterWidth = [];
     bp.blankLine = [];
@@ -100,7 +93,7 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
       var lastBlackPos = 0;
       var blankLine = true;
       // loop through each column
-      for (var x = 0; x < w - 1; x++) { //not visiting last column cause no "right" point
+      for (var x = 0; x < w - 1; x++) { // not visiting last column cause no "right" point
         if (data[((w * y) + x) * 4] === 0 && data[((w * y) + x) * 4 + 3] === 255) {
           blankLine = false;
           if (firstBlack) {
@@ -109,11 +102,9 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
           }
           lastBlack = true;
           lastBlack = x;
-
           bp.amount++;
           if (data[((w * y) + x + 1) * 4] === 0 && data[((w * y) + x + 1) * 4 + 3] === 255 && data[((w * (y + 1)) + x) * 4] === 0 && data[((w * (y + 1)) + x) * 4 + 3] === 255) // && data[((w * (y+1)) + x+1) * 4]===0)
             bp.rightDownBlack++;
-
         } else {
           if (lastBlack) {
             lastBlackPos = x - 1;
@@ -121,7 +112,6 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
           }
         }
       }
-
       if (data[((w * y) + x) * 4] === 0) { //visit last column 
         blankLine = false;
         if (firstBlack) {
@@ -139,11 +129,7 @@ ImageData.prototype.blackPixels = function(calculateRightDown) {
       }
       bp.blankLine.push(blankLine);
       bp.characterWidth.push(lastBlackPos - firstBlackPos + 1);
-
     }
-  } else {
-    for (i = 0; i < n; i += 4)
-      if (data[i] === 0 && data[i + 3] === 255) bp.amount++;
   }
   return bp;
 };
