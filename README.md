@@ -2,4 +2,4 @@
 segementation of handwriting chinese words
 
 ## Demo Page
-See [here](http://chenyuho.com/wordseg)
+See [here](https://www.chenyuho.com/project/chinese-character-extraction)
